@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Web Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        #controls {
+            display: none;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response {
+            margin-top: 20px;
+            color: #555;
+            font-size: 1.2em;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Control</h1>
+
+    <!-- Botón para iniciar conexión -->
+    <div id="start">
+        <button onclick="startConnection()">Start Connection</button>
+    </div>
+
+    <!-- Botón para iniciar el experimento, que aparece después de la conexión -->
+    <div id="experimentStart" style="display: none;">
+        <button onclick="startExperiment()">Start Experiment</button>
+    </div>
+
+    <!-- Respuesta del experimento, aparecerá cuando termine -->
+    <div id="responseContainer" style="display: none;">
+        <p id="response">Waiting for experiment results...</p>
+        <button onclick="endConnection()">End Connection</button> <!-- Botón para cerrar conexión -->
+    </div>
+
+    <!-- Boton para terminar la conexión -->
+    <button id="endConnection" onclick="endConnection()">End Connection</button>
+
+    <script>
+        const responseElement = document.getElementById("response");
+
+        // Muestra un mensaje de estado
+        function showMessage(message, isError = false) {
+            responseElement.innerText = message;
+            responseElement.style.color = isError ? "red" : "#555";
+        }
+
+        // Función para conectar al ESP32
+        async function startConnection() {
+            try {
+                const response = await fetch("/connect");
+                const result = await response.json();
+                console.log(result);
+
+                if (result.status === "Conexión iniciada") {
+                    alert("Conexion establecida. Listo para comenzar el experimento.");
+                    document.getElementById("start").style.display = "none"; // Oculta el botón de conexión
+                    document.getElementById("experimentStart").style.display = "block"; // Muestra el botón de inicio del experimento
+                    document.getElementById("endConnection").style.display = "block"; // Muestra el botón de finalización de conexión
+                } else {
+                    showMessage("Failed to start connection: " + (result.error || "Unknown error"), true);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                showMessage("Error while starting connection.", true);
+            }
+        }
+
+        // Función para iniciar el experimento
+        async function startExperiment() {
+            try {
+                const response = await fetch("/data", {
+                    method: "POST",
+                });
+                const result = await response.json();
+                console.log(result);
+
+                if (result.status !== "Error") {
+                    showMessage("Experiment started successfully. Waiting for results...");
+                    // Simulando que el experimento terminó
+                    setTimeout(() => showExperimentResults(), 2000); // Simula la espera de resultados
+                } else {
+                    showMessage("Failed to start experiment: " + (result.error || "Unknown error"), true);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                showMessage("Failed to start experiment.", true);
+            }
+        }
+
+        // Función para mostrar los resultados del experimento
+        function showExperimentResults() {
+            // Aquí iría la lógica para obtener los resultados del experimento
+            // Por ahora, los mostramos como un ejemplo simulado.
+            showMessage("Experiment completed. Data received: Sample Data 12345.");
+            document.getElementById("responseContainer").style.display = "block"; // Muestra los resultados
+        }
+
+        // Función para cerrar la conexión
+        async function endConnection() {
+            try {
+                const response = await fetch("/disconnect");
+                const result = await response.json();
+                console.log(result);
+
+                if (result.status === "Conexión cerrada") {
+                    showMessage("Connection closed.");
+                    document.getElementById("responseContainer").style.display = "none"; // Oculta los resultados
+                    document.getElementById("experimentStart").style.display = "none"; // Oculta el botón de inicio del experimento
+                    document.getElementById("start").style.display = "block"; // Muestra el botón de conexión
+                    document.getElementById("endConnection").style.display = "none"; // Oculta el botón de finalización de conexión
+                } else {
+                    showMessage("Failed to close connection: " + (result.error || "Unknown error"), true);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                showMessage("Failed to close connection.", true);
+            }
+        }
+    </script>
+</body>
+</html>
