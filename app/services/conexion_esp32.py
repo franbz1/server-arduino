@@ -22,7 +22,7 @@ class SerialConnection:
             if self.conexion_serial and self.conexion_serial.is_open:
                 return True
             self.conexion_serial = serial.Serial(self.puerto, self.velocidad, timeout=self.timeout)
-            time.sleep(2)  # Tiempo para estabilizar conexión
+            time.sleep(2)
             return True
         except serial.SerialException as e:
             print(f"Error al abrir la conexión serial: {e}")
@@ -37,20 +37,51 @@ class SerialConnection:
             return True
         return False
 
-    def enviar_comando(self, comando: str) -> Union[str, None]:
+    def enviar_comando(self, comando: str) -> Union[dict, str]:
         """
-        Envía un comando al dispositivo y espera una respuesta.
+        Envía un comando al dispositivo y espera una respuesta JSON válida.
         """
         try:
             if self.conexion_serial and self.conexion_serial.is_open:
+                # Limpiar el buffer antes de enviar el comando
+                self.conexion_serial.reset_input_buffer()
+                
+                # Enviar el comando
                 self.conexion_serial.write(comando.encode())
-                time.sleep(1)  # Esperar respuesta
-                return self.conexion_serial.read_all().decode('utf-8').strip()
-            print("Error: conexión serial no abierta.")
-            return None
+                time.sleep(0.1)  # Pausa para permitir al ESP32 procesar
+
+                buffer_respuesta = ""  # Acumulador para la respuesta
+                inicio_timeout = time.time()
+                tiempo_maximo = 10  # Tiempo máximo en segundos para recibir un JSON válido
+
+                while True:
+                    # Leer datos disponibles
+                    if self.conexion_serial.in_waiting > 0:
+                        buffer_respuesta += self.conexion_serial.read(self.conexion_serial.in_waiting).decode('utf-8')
+
+                        # Verificar si se puede parsear como JSON
+                        try:
+                            print(buffer_respuesta)
+                            respuesta_json = json.loads(buffer_respuesta.strip())
+                            return respuesta_json  # JSON válido recibido
+                        except json.JSONDecodeError:
+                            # JSON incompleto, seguir leyendo
+                            pass
+
+                    # Verificar timeout
+                    if time.time() - inicio_timeout > tiempo_maximo:
+                        return {
+                            "datos": "Error: tiempo de espera agotado para recibir respuesta JSON completa."
+                        }
+
+                return {
+                    "datos": "Error desconocido durante la recepción del JSON."
+                }
+            return {
+                "datos": "Error: conexión serial no abierta."
+            }
         except Exception as e:
-            print(f"Error al enviar comando: {e}")
-            return None
+            return {"datos": f"Error al enviar comando: {e}"}
 
 class ConexionESP32:
     """
@@ -76,7 +107,7 @@ class ConexionESP32:
         Solicita y obtiene los datos del último experimento del ESP32.
         """
         respuesta = self.serial.enviar_comando("datos\n")
-        if respuesta and respuesta.startswith("Datos:"):
+        if respuesta:
             return respuesta
         return "No se recibieron datos." if respuesta else "Error al obtener datos."
 
@@ -87,11 +118,7 @@ class ConexionESP32:
         respuesta = self.serial.enviar_comando("inicio\n")
         if not respuesta:
             return "Error al iniciar el experimento o conexión no abierta."
-
-        # Procesar JSONs válidos en la respuesta
-        lineas = respuesta.split('\r\n')
-        jsons_validos = self._filtrar_jsons(lineas)
-        return jsons_validos if jsons_validos else "No se encontraron datos relevantes."
+        return respuesta
 
     @staticmethod
     def _filtrar_jsons(lineas: List[str]) -> List[Dict]:

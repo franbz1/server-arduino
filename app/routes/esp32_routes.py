@@ -16,8 +16,10 @@ def conectar():
         return jsonify({"estado": "Conexión ya iniciada"})
     try:
         esp32 = ConexionESP32(PUERTO_ESP32, VELOCIDAD_BAUDIOS)
-        esp32.iniciar_conexion()
-        return jsonify({"estado": "Conexión iniciada"})
+        if esp32.iniciar_conexion():
+          return jsonify({"estado": "Conexión iniciada"})
+        else:
+          return jsonify({"estado": "Error al iniciar la conexión"}), 500
     except Exception as e:
         return jsonify({"estado": f"Error al iniciar la conexión: {e}"}), 500
 
@@ -26,7 +28,7 @@ def obtener_datos():
     if not esp32:
         return jsonify({"estado": "Error: conexión no iniciada"}), 400
     respuesta = esp32.obtener_datos_ultimo_experimento()
-    return jsonify({"datos": respuesta})
+    return jsonify(respuesta)
 
 @esp32_blueprint.route("/desconectar", methods=["GET"])
 def desconectar():
@@ -39,4 +41,4 @@ def iniciar():
     if not esp32:
         return jsonify({"estado": "Error: conexión no iniciada"}), 400
     respuesta = esp32.iniciar_experimento()
-    return jsonify({"datos": respuesta})
+    return jsonify(respuesta)

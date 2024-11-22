@@ -3,76 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de ESP32</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-        }
-        button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        #resultado {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #333;
-        }
-    </style>
-    <script>
-        let conexionEstablecida = false;
-
-        async function conectarESP32() {
-            try {
-                const response = await fetch('/conectar');
-                const data = await response.json();
-                alert(data.estado);
-                if (response.ok) {
-                    conexionEstablecida = true;
-                    document.getElementById('btnIniciar').style.display = 'inline-block';
-                    document.getElementById('btnDesconectar').style.display = 'inline-block';
-                }
-            } catch (error) {
-                alert('Error al conectar con ESP32.');
-            }
-        }
-
-        async function iniciarExperimento() {
-            try {
-                const response = await fetch('/iniciar');
-                const data = await response.json();
-                console.log(data);
-                document.getElementById('resultado').innerText = `Resultado del experimento: ${data.datos}`;
-            } catch (error) {
-                alert('Error al iniciar el experimento.');
-            }
-        }
-
-        async function cerrarConexion() {
-            try {
-                const response = await fetch('/desconectar');
-                const data = await response.json();
-                alert(data.estado);
-                if (response.ok) {
-                    conexionEstablecida = false;
-                    document.getElementById('btnIniciar').style.display = 'none';
-                    document.getElementById('btnDesconectar').style.display = 'none';
-                    document.getElementById('resultado').innerText = '';
-                }
-            } catch (error) {
-                alert('Error al cerrar la conexión.');
-            }
-        }
-    </script>
+    <title>ESP32 Control</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <h1>Control de ESP32</h1>
-    <button id="btnConectar" onclick="conectarESP32()">Conectar ESP32</button>
-    <button id="btnIniciar" onclick="iniciarExperimento()" style="display: none;">Iniciar Experimento</button>
-    <button id="btnDesconectar" onclick="cerrarConexion()" style="display: none;">Cerrar Conexión</button>
-    <div id="resultado"></div>
+    
+    <!-- Botones -->
+    <button id="btn-iniciar-conexion">Iniciar Conexión</button>
+    <button id="btn-iniciar-experimento" style="display: none;">Iniciar Experimento</button>
+    <button id="btn-cerrar-conexion" style="display: none;">Cerrar Conexión</button>
+    <button id="btn-ver-resultados" style="display: none;">Ver Resultados</button>
+    
+    <!-- Área para mostrar resultados -->
+    <div id="resultados" style="margin-top: 20px;"></div>
+    
+    <script>
+        $(document).ready(function () {
+            // Botón para iniciar la conexión
+            $('#btn-iniciar-conexion').click(function () {
+                $.get('/conectar', function (response) {
+                    alert(response.estado); // Muestra el estado al usuario
+                    if (response.estado === 'Conexión iniciada') {
+                        $('#btn-iniciar-conexion').hide();
+                        $('#btn-iniciar-experimento').show();
+                        $('#btn-cerrar-conexion').show();
+                    }
+                }).fail(function () {
+                    alert('Error al intentar iniciar la conexión.');
+                });
+            });
+
+            // Botón para cerrar la conexión
+            $('#btn-cerrar-conexion').click(function () {
+                $.get('/desconectar', function (response) {
+                    alert(response.estado); // Muestra el estado al usuario
+                    if (response.estado === 'Conexión cerrada' || response.estado === 'Conexión ya iniciada') {
+                        $('#btn-iniciar-conexion').show();
+                        $('#btn-iniciar-experimento').hide();
+                        $('#btn-cerrar-conexion').hide();
+                        $('#btn-ver-resultados').hide();
+                        $('#resultados').empty(); // Limpia los resultados mostrados
+                    }
+                }).fail(function () {
+                    alert('Error al intentar cerrar la conexión.');
+                });
+            });
+
+            // Botón para iniciar un experimento
+            $('#btn-iniciar-experimento').click(function () {
+                $.get('/iniciar', function (response) {
+                    alert(response.estado || 'Experimento iniciado'); // Muestra el estado
+                    $('#btn-iniciar-experimento').hide();
+                    $('#btn-ver-resultados').show();
+                }).fail(function () {
+                    alert('Error al iniciar el experimento.');
+                });
+            });
+
+            // Botón para ver los resultados del experimento
+            $('#btn-ver-resultados').click(function () {
+                $.get('/datos', function (response) {
+                    $('#resultados').html('<pre>' + JSON.stringify(response, null, 2) + '</pre>');
+                    $('#btn-ver-resultados').hide();
+                    $('#btn-iniciar-experimento').show();
+                }).fail(function () {
+                    alert('Error al obtener los resultados.');
+                });
+            });
+        });
+    </script>
 </body>
 </html>
