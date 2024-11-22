@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de ESP32</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #resultado {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+    <script>
+        let conexionEstablecida = false;
+
+        async function conectarESP32() {
+            try {
+                const response = await fetch('/conectar');
+                const data = await response.json();
+                alert(data.estado);
+                if (response.ok) {
+                    conexionEstablecida = true;
+                    document.getElementById('btnIniciar').style.display = 'inline-block';
+                    document.getElementById('btnDesconectar').style.display = 'inline-block';
+                }
+            } catch (error) {
+                alert('Error al conectar con ESP32.');
+            }
+        }
+
+        async function iniciarExperimento() {
+            try {
+                const response = await fetch('/iniciar');
+                const data = await response.json();
+                console.log(data);
+                document.getElementById('resultado').innerText = `Resultado del experimento: ${data.datos}`;
+            } catch (error) {
+                alert('Error al iniciar el experimento.');
+            }
+        }
+
+        async function cerrarConexion() {
+            try {
+                const response = await fetch('/desconectar');
+                const data = await response.json();
+                alert(data.estado);
+                if (response.ok) {
+                    conexionEstablecida = false;
+                    document.getElementById('btnIniciar').style.display = 'none';
+                    document.getElementById('btnDesconectar').style.display = 'none';
+                    document.getElementById('resultado').innerText = '';
+                }
+            } catch (error) {
+                alert('Error al cerrar la conexión.');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Control de ESP32</h1>
+    <button id="btnConectar" onclick="conectarESP32()">Conectar ESP32</button>
+    <button id="btnIniciar" onclick="iniciarExperimento()" style="display: none;">Iniciar Experimento</button>
+    <button id="btnDesconectar" onclick="cerrarConexion()" style="display: none;">Cerrar Conexión</button>
+    <div id="resultado"></div>
+</body>
+</html>
